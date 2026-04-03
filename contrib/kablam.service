@@ -1,0 +1,12 @@
+[Unit]
+Description=Kablam music inbox watcher
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=%h/.cargo/bin/kablam watch
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

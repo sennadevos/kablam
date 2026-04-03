@@ -1,0 +1,42 @@
+[package]
+name = "kablam"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "kablam"
+path = "src/main.rs"
+
+[dependencies]
+# CLI
+clap = { version = "4", features = ["derive"] }
+
+# Error handling
+anyhow = "1"
+
+# HTTP
+ureq = { version = "2", features = ["json"] }
+
+# JSON
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Audio fingerprint
+rustfft = "6"
+
+# Binary encoding / hashing
+crc32fast = "1"
+base64 = "0.22"
+
+# UUIDs
+uuid = { version = "1", features = ["v4"] }
+
+# Tag writing
+lofty = "0.21"
+
+# Filesystem helpers
+dirs = "5"
+
+# Daemon / watch mode
+notify = "7"
+ctrlc = "3"
