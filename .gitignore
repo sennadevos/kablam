@@ -2,12 +2,3 @@
 *.opus
 *.mp3
 *.mp4
-
-# Old Go implementation
-/cmd
-/internal
-/pkg
-/kablam
-main.go
-go.mod
-go.sum

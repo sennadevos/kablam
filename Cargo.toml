@@ -2,6 +2,12 @@
 name = "kablam"
 version = "0.1.0"
 edition = "2021"
+description = "Shazam-powered CLI that identifies, tags, and sorts your music library"
+license = "MIT"
+repository = "https://github.com/sjdevos/kablam"
+readme = "README.md"
+keywords = ["shazam", "music", "audio", "fingerprint", "tagger"]
+categories = ["command-line-utilities", "multimedia::audio"]
 
 [[bin]]
 name = "kablam"
