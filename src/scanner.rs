@@ -113,3 +113,35 @@ pub fn scan(paths: &[PathBuf], recursive: bool) -> anyhow::Result<Vec<PathBuf>> 
     deduped.sort();
     Ok(deduped)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn audio_extensions_accepted() {
+        for ext in &["mp3", "flac", "m4a", "aac", "ogg", "opus", "wav"] {
+            let p = PathBuf::from(format!("song.{}", ext));
+            assert!(has_audio_extension(&p), "expected {} to be accepted", ext);
+        }
+    }
+
+    #[test]
+    fn audio_extensions_case_insensitive() {
+        assert!(has_audio_extension(&PathBuf::from("song.MP3")));
+        assert!(has_audio_extension(&PathBuf::from("song.Flac")));
+    }
+
+    #[test]
+    fn non_audio_extensions_rejected() {
+        for ext in &["txt", "jpg", "mp4", "avi", "pdf"] {
+            let p = PathBuf::from(format!("file.{}", ext));
+            assert!(!has_audio_extension(&p), "expected {} to be rejected", ext);
+        }
+    }
+
+    #[test]
+    fn no_extension_rejected() {
+        assert!(!has_audio_extension(&PathBuf::from("noext")));
+    }
+}
