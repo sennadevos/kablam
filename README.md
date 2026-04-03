@@ -1,5 +1,9 @@
 # Kablam!
 
+[![CI](https://github.com/sennadevos/kablam/actions/workflows/ci.yml/badge.svg)](https://github.com/sennadevos/kablam/actions/workflows/ci.yml)
+[![Release](https://github.com/sennadevos/kablam/actions/workflows/release.yml/badge.svg)](https://github.com/sennadevos/kablam/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 **Shazam-powered CLI that identifies, tags, and sorts your music library — no filenames needed.**
 
 Got a folder full of `track_01_final_FINAL(2).mp3` and `Unknown Artist - Unknown Album.opus`? Kablam! listens to the actual audio, asks Shazam what it is, slaps on proper metadata + cover art, and files it away neatly. Your music hoarding days of chaos are over.
@@ -25,14 +29,33 @@ Got a folder full of `track_01_final_FINAL(2).mp3` and `Unknown Artist - Unknown
 
 ## Installation
 
+### Quick install (Linux / macOS)
+
 ```bash
-cargo install --path .
+curl -fsSL https://raw.githubusercontent.com/sennadevos/kablam/main/install.sh | sh
 ```
 
-Or build from source:
+This downloads the latest pre-built binary for your platform to `~/.local/bin`.
+
+### Pre-built binaries
+
+Grab the latest release from [GitHub Releases](https://github.com/sennadevos/kablam/releases) and extract it:
 
 ```bash
-git clone https://github.com/sjdevos/kablam.git
+tar xzf kablam-x86_64-unknown-linux-gnu.tar.gz
+sudo mv kablam /usr/local/bin/
+```
+
+### From source
+
+```bash
+cargo install --git https://github.com/sennadevos/kablam
+```
+
+Or clone and build:
+
+```bash
+git clone https://github.com/sennadevos/kablam.git
 cd kablam
 cargo build --release
 # Binary is at ./target/release/kablam
