@@ -45,6 +45,10 @@ pub struct ProcessArgs {
     /// Back up original file to <file>.bak before modifying
     #[arg(long)]
     pub backup: bool,
+
+    /// Number of fingerprint passes at different positions (default: 3)
+    #[arg(long, default_value = "3")]
+    pub passes: u32,
 }
 
 #[derive(Parser, Debug)]
@@ -72,6 +76,10 @@ pub struct WatchArgs {
     /// Seconds to wait for file size to stabilize (default: 2)
     #[arg(long, default_value = "2")]
     pub settle: u64,
+
+    /// Number of fingerprint passes at different positions (default: 3)
+    #[arg(long, default_value = "3")]
+    pub passes: u32,
 }
 
 /// Shared config extracted from either subcommand for process_one().
@@ -80,6 +88,7 @@ pub struct ProcessConfig {
     pub dry_run: bool,
     pub unmatched: String,
     pub backup: bool,
+    pub passes: u32,
 }
 
 fn default_library() -> PathBuf {
@@ -101,6 +110,7 @@ impl ProcessArgs {
             dry_run: self.dry_run,
             unmatched: self.unmatched.clone(),
             backup: self.backup,
+            passes: self.passes.max(1),
         }
     }
 }
@@ -126,6 +136,7 @@ impl WatchArgs {
             dry_run: false,
             unmatched: self.unmatched.clone(),
             backup: self.backup,
+            passes: self.passes.max(1),
         }
     }
 }

@@ -40,30 +40,92 @@ pub fn run(args: ProcessArgs) -> Result<()> {
 
 pub fn process_one(path: &Path, config: &ProcessConfig, library: &Path) -> Status {
     let src = path.display().to_string();
+    let positions = fingerprint::sample_positions(config.passes);
 
-    // 1. Fingerprint
-    if config.verbose {
-        eprintln!("[FINGERPRINT] {}", path.display());
+    // Try each position, keeping the best match (lowest skew)
+    let mut best: Option<shazam::TrackResult> = None;
+    let mut all_failed = true;
+    let mut last_error: Option<String> = None;
+
+    for (i, &pos) in positions.iter().enumerate() {
+        if config.verbose {
+            eprintln!(
+                "[FINGERPRINT] {} (pass {}/{}, position {:.0}%)",
+                path.display(),
+                i + 1,
+                positions.len(),
+                pos * 100.0,
+            );
+        }
+
+        let (uri, sample_ms) = match fingerprint::compute(path, pos) {
+            Err(e) => {
+                last_error = Some(e.to_string());
+                continue;
+            }
+            Ok(None) => continue,
+            Ok(Some(v)) => v,
+        };
+
+        if config.verbose {
+            eprintln!("[FINGERPRINT] {}ms, uri len={}", sample_ms, uri.len());
+        }
+
+        // Rate-limit between Shazam API calls within multi-pass
+        if i > 0 {
+            sleep(Duration::from_secs(1));
+        }
+
+        match shazam::identify(&uri, sample_ms, config.verbose) {
+            Err(e) => {
+                last_error = Some(format!("shazam: {}", e));
+                continue;
+            }
+            Ok(None) => {
+                all_failed = false;
+                continue;
+            }
+            Ok(Some(track)) => {
+                all_failed = false;
+                if config.verbose {
+                    eprintln!(
+                        "[MATCH] pass {}: \"{}\" by {} (matches: {}, skew: {:.6})",
+                        i + 1,
+                        track.title,
+                        track.artist,
+                        track.match_count,
+                        track.match_skew,
+                    );
+                }
+                // Prefer lowest skew — most precise match wins
+                best = Some(match best {
+                    Some(prev) if prev.match_skew <= track.match_skew => prev,
+                    _ => track,
+                });
+            }
+        }
     }
-    let (uri, sample_ms) = match fingerprint::compute(path) {
-        Err(e) => return Status::Error { source: src, message: e.to_string() },
-        Ok(None) => return handle_unmatched(path, config, library, "audio too short to fingerprint"),
-        Ok(Some(v)) => v,
+
+    // No match from any pass
+    let mut track = match best {
+        None if all_failed => {
+            let msg = last_error.unwrap_or_else(|| "audio too short to fingerprint".to_string());
+            return Status::Error { source: src, message: msg };
+        }
+        None => {
+            return handle_unmatched(path, config, library, "not recognised by Shazam");
+        }
+        Some(t) => t,
     };
 
-    if config.verbose {
-        eprintln!("[FINGERPRINT] {}ms, uri len={}", sample_ms, uri.len());
+    if config.passes > 1 && config.verbose {
+        eprintln!(
+            "[BEST] \"{}\" by {} (skew: {:.6})",
+            track.title, track.artist, track.match_skew,
+        );
     }
 
-    // 2. Identify
-    let track = match shazam::identify(&uri, sample_ms, config.verbose) {
-        Err(e) => return Status::Error { source: src, message: format!("shazam: {}", e) },
-        Ok(None) => return handle_unmatched(path, config, library, "not recognised by Shazam"),
-        Ok(Some(t)) => t,
-    };
-
-    // 3. Download cover art
-    let mut track = track;
+    // Download cover art
     if !track.cover_art_url.is_empty() {
         match shazam::download_cover_art(&track.cover_art_url) {
             Ok(data) => track.cover_art_data = data,
@@ -72,12 +134,12 @@ pub fn process_one(path: &Path, config: &ProcessConfig, library: &Path) -> Statu
         }
     }
 
-    // 4. Write tags
+    // Write tags
     if let Err(e) = tagger::write_tags(path, &track, config.dry_run, config.verbose) {
         return Status::Error { source: src, message: e.to_string() };
     }
 
-    // 5. Move to library
+    // Move to library
     let ext = path
         .extension()
         .map(|e| format!(".{}", e.to_string_lossy()))

@@ -231,12 +231,14 @@ impl SignatureGenerator {
         }
     }
 
-    fn process_and_encode(mut self, samples: &[f32], fft: &dyn rustfft::Fft<f32>) -> Option<(String, u32)> {
+    fn process_and_encode(mut self, samples: &[f32], fft: &dyn rustfft::Fft<f32>, position: f32) -> Option<(String, u32)> {
         let max_samples = (MAX_SECS as usize) * SAMPLE_RATE as usize;
         let samples = if samples.len() > max_samples {
-            let mid = samples.len() / 2;
-            let half = max_samples / 2;
-            &samples[mid - half..mid + half]
+            // Position 0.0 = start, 0.5 = middle, 1.0 = end
+            let pos = position.clamp(0.0, 1.0);
+            let available = samples.len() - max_samples;
+            let offset = (available as f32 * pos) as usize;
+            &samples[offset..offset + max_samples]
         } else {
             samples
         };
@@ -377,11 +379,20 @@ pub fn decode_pcm(path: &Path) -> anyhow::Result<Vec<f32>> {
 
 // ── Public entry point ────────────────────────────────────────────────────────
 
-pub fn compute(path: &Path) -> anyhow::Result<Option<(String, u32)>> {
+/// Compute a fingerprint from the audio at a given position (0.0–1.0).
+pub fn compute(path: &Path, position: f32) -> anyhow::Result<Option<(String, u32)>> {
     let samples = decode_pcm(path)?;
     let n = samples.len() as u32;
     let mut planner = FftPlanner::<f32>::new();
     let fft = planner.plan_fft_forward(FFT_SIZE);
     let gen = SignatureGenerator::new(n);
-    Ok(gen.process_and_encode(&samples, fft.as_ref()))
+    Ok(gen.process_and_encode(&samples, fft.as_ref(), position))
+}
+
+/// Generate evenly-spaced sample positions for `n` passes.
+/// 1 pass → [0.5], 2 → [0.33, 0.67], 3 → [0.25, 0.5, 0.75], etc.
+pub fn sample_positions(passes: u32) -> Vec<f32> {
+    (1..=passes)
+        .map(|i| i as f32 / (passes as f32 + 1.0))
+        .collect()
 }

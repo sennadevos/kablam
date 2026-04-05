@@ -78,6 +78,9 @@ kablam process ~/Downloads/music/ -r
 # Specify a library destination
 kablam process ~/Music/00_Inbox -r --library ~/Music/Library
 
+# Multi-pass — try 5 different positions for better accuracy
+kablam process ~/Music/00_Inbox -r --passes 5
+
 # Dry run — see what would happen without touching files
 kablam process ~/Music/00_Inbox --dry-run --verbose
 ```
@@ -120,6 +123,7 @@ Unmatched files (songs Shazam can't identify) are left untouched by default.
 | `-v`, `--verbose` | Verbose/debug output |
 | `--unmatched <action>` | `skip` (default), `move`, or `ignore` unidentified files |
 | `--backup` | Create `.bak` backup before modifying files |
+| `--passes <n>` | Number of fingerprint passes at different positions (default: `3`; see [docs/passes.md](docs/passes.md)) |
 
 ### `kablam watch`
 
@@ -131,6 +135,7 @@ Unmatched files (songs Shazam can't identify) are left untouched by default.
 | `--unmatched <action>` | `skip` (default), `move`, or `ignore` unidentified files |
 | `--backup` | Create `.bak` backup before modifying files |
 | `--settle <secs>` | Seconds to wait for file size to stabilize (default: `2`) |
+| `--passes <n>` | Number of fingerprint passes at different positions (default: `3`; see [docs/passes.md](docs/passes.md)) |
 
 ### Supported formats
 

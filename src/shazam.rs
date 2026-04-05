@@ -15,6 +15,10 @@ pub struct TrackResult {
     pub track_number: u32,
     pub cover_art_url: String,
     pub cover_art_data: Vec<u8>,
+    /// Number of Shazam match entries (more = higher confidence)
+    pub match_count: usize,
+    /// Combined frequency + time skew (lower = more confident match)
+    pub match_skew: f64,
 }
 
 // --- Serde structs for request body ---
@@ -79,14 +83,15 @@ struct ShazamMetadataEntry {
 
 // --- Helper to extract TrackResult from a ShazamResponse ---
 
-fn extract_track_result(response: ShazamResponse) -> Option<TrackResult> {
-    let track = response.track?;
+fn extract_track_result(response: &ShazamResponse) -> Option<TrackResult> {
+    let track = response.track.as_ref()?;
 
-    let title = track.title.unwrap_or_default();
-    let artist = track.subtitle.unwrap_or_default();
+    let title = track.title.clone().unwrap_or_default();
+    let artist = track.subtitle.clone().unwrap_or_default();
     let genre = track
         .genres
-        .and_then(|g| g.primary)
+        .as_ref()
+        .and_then(|g| g.primary.clone())
         .unwrap_or_default();
 
     let cover_art_url = track
@@ -105,17 +110,17 @@ fn extract_track_result(response: ShazamResponse) -> Option<TrackResult> {
     let mut album = String::new();
     let mut year = String::new();
 
-    if let Some(sections) = track.sections {
+    if let Some(sections) = &track.sections {
         for section in sections {
             if section.section_type.as_deref() == Some("SONG") {
-                if let Some(metadata) = section.metadata {
+                if let Some(metadata) = &section.metadata {
                     for entry in metadata {
                         match entry.title.as_deref() {
                             Some("Album") => {
-                                album = entry.text.unwrap_or_default();
+                                album = entry.text.clone().unwrap_or_default();
                             }
                             Some("Released") => {
-                                year = entry.text.unwrap_or_default();
+                                year = entry.text.clone().unwrap_or_default();
                             }
                             _ => {}
                         }
@@ -125,6 +130,18 @@ fn extract_track_result(response: ShazamResponse) -> Option<TrackResult> {
             }
         }
     }
+
+    // Compute confidence from match data
+    let match_count = response.matches.len();
+    let match_skew = response
+        .matches
+        .iter()
+        .map(|m| {
+            let fskew = m["frequencyskew"].as_f64().unwrap_or(1.0).abs();
+            let tskew = m["timeskew"].as_f64().unwrap_or(1.0).abs();
+            fskew + tskew
+        })
+        .fold(f64::MAX, f64::min);
 
     Some(TrackResult {
         title,
@@ -136,6 +153,8 @@ fn extract_track_result(response: ShazamResponse) -> Option<TrackResult> {
         track_number: 0,
         cover_art_url,
         cover_art_data: Vec::new(),
+        match_count,
+        match_skew,
     })
 }
 
@@ -252,7 +271,7 @@ pub fn identify(uri: &str, sample_ms: u32, verbose: bool) -> anyhow::Result<Opti
                 return Ok(None);
             }
 
-            return Ok(extract_track_result(shazam_response));
+            return Ok(extract_track_result(&shazam_response));
         }
 
         // No match yet; check if we should retry
